@@ -112,7 +112,7 @@ func TestMain(m *testing.M) {
 
 			// Build docker image
 			log.Println("Building docker image...")
-			if p := utils.RunCommand(fmt.Sprintf("docker build -t %s .", dockerImage)); p.Err() != nil {
+			if p := utils.RunCommand(fmt.Sprintf("make docker-build IMG=%s", dockerImage)); p.Err() != nil {
 				log.Printf("Failed to build docker image: %s: %s", p.Err(), p.Out())
 				return ctx, p.Err()
 			}
