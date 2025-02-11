@@ -24,8 +24,6 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
 	apiextensionsV1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-
-	ecv1alpha1 "go.etcd.io/etcd-operator/api/v1alpha1"
 )
 
 // Sample Feature-based test with e2e-framework
@@ -37,7 +35,7 @@ func TestBasicFeature(t *testing.T) {
 			t.Log("Assessing the state of the cluster...")
 
 			client := cfg.Client()
-			_ = ecv1alpha1.AddToScheme(client.Resources().GetScheme())
+			_ = apiextensionsV1.AddToScheme(client.Resources().GetScheme())
 
 			var crd apiextensionsV1.CustomResourceDefinition
 			if err := client.Resources().Get(ctx, "etcdclusters.operator.etcd.io", "", &crd); err != nil {

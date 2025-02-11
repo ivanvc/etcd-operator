@@ -28,15 +28,16 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
+	"sigs.k8s.io/e2e-framework/pkg/utils"
 	"sigs.k8s.io/e2e-framework/support/kind"
-	"sigs.k8s.io/e2e-framework/support/utils"
 
-	kubebuilder_utils "go.etcd.io/etcd-operator/test/utils"
+	test_utils "go.etcd.io/etcd-operator/test/utils"
 )
 
 var (
 	testEnv     env.Environment
 	dockerImage = "etcd-operator-controller:current"
+	namespace   = "etcd-operator-system"
 )
 
 func TestMain(m *testing.M) {
@@ -47,13 +48,21 @@ func TestMain(m *testing.M) {
 	log.Println("Creating KinD cluster...")
 	origWd, _ := os.Getwd()
 	testEnv.Setup(
-		// setup up environment
+		// create namespace and deploy the etcd-operator
 		func(ctx context.Context, cfg *envconf.Config) (context.Context, error) {
-			// create KinD cluster
 			var err error
+
+			// create KinD cluster
 			ctx, err = envfuncs.CreateCluster(kindCluster, kindClusterName)(ctx, cfg)
 			if err != nil {
 				log.Printf("failed to create cluster: %s", err)
+				return ctx, err
+			}
+
+			// create namespace
+			ctx, err = envfuncs.CreateNamespace(namespace)(ctx, cfg)
+			if err != nil {
+				log.Printf("failed to create namespace: %s", err)
 				return ctx, err
 			}
 
@@ -75,6 +84,7 @@ func TestMain(m *testing.M) {
 				log.Printf("Failed to install kustomize binary: %s: %s", p.Err(), p.Out())
 				return ctx, p.Err()
 			}
+
 			if p := utils.RunCommand(
 				`make controller-gen`,
 			); p.Err() != nil {
@@ -126,12 +136,12 @@ func TestMain(m *testing.M) {
 		// install prometheus and cert-manager
 		func(ctx context.Context, cfg *envconf.Config) (context.Context, error) {
 			log.Println("Installing prometheus operator...")
-			if err := kubebuilder_utils.InstallPrometheusOperator(); err != nil {
+			if err := test_utils.InstallPrometheusOperator(); err != nil {
 				log.Printf("Unable to install Prometheus operator: %s", err)
 			}
 
 			log.Println("Installing cert-manager...")
-			if err := kubebuilder_utils.InstallCertManager(); err != nil {
+			if err := test_utils.InstallCertManager(); err != nil {
 				log.Printf("Unable to install Cert Manager: %s", err)
 			}
 
@@ -146,6 +156,12 @@ func TestMain(m *testing.M) {
 
 		// set up environment
 		func(ctx context.Context, cfg *envconf.Config) (context.Context, error) {
+			// make sure you are on the orignal wd
+			if err := os.Chdir(origWd); err != nil {
+				log.Printf("Unable to set working directory: %s", err)
+				return ctx, err
+			}
+
 			// change working directory for Make file
 			if err := os.Chdir("../../"); err != nil {
 				log.Printf("Unable to set working directory: %s", err)
@@ -219,6 +235,7 @@ func TestMain(m *testing.M) {
 
 			return ctx, nil
 		},
+
 		// remove the installed dependencies
 		func(ctx context.Context, c *envconf.Config) (context.Context, error) {
 			// change working directory for Make file
@@ -230,10 +247,10 @@ func TestMain(m *testing.M) {
 			log.Println("Removing dependencies...")
 
 			// remove prometheus
-			kubebuilder_utils.UninstallPrometheusOperator()
+			test_utils.UninstallPrometheusOperator()
 
 			// remove cert-manager
-			kubebuilder_utils.UninstallCertManager()
+			test_utils.UninstallCertManager()
 
 			// set working directory test/e2e
 			if err := os.Chdir(origWd); err != nil {
@@ -246,9 +263,15 @@ func TestMain(m *testing.M) {
 
 		// Destroy environment
 		func(ctx context.Context, cfg *envconf.Config) (context.Context, error) {
-			log.Println("Destroying cluster...")
-
 			var err error
+
+			log.Println("Destroying namespace...")
+			ctx, err = envfuncs.DeleteNamespace(namespace)(ctx, cfg)
+			if err != nil {
+				log.Printf("failed to delete namespace: %s", err)
+			}
+
+			log.Println("Destroying cluster...")
 			ctx, err = envfuncs.DestroyCluster(kindClusterName)(ctx, cfg)
 			if err != nil {
 				log.Printf("failed to delete cluster: %s", err)
