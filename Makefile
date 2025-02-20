@@ -44,11 +44,11 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: manifests
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
@@ -60,7 +60,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
+test: manifests generate fmt vet ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 # TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
@@ -73,11 +73,11 @@ test-e2e: generate fmt vet kind ## Run the e2e tests. Expected an isolated envir
 	PATH="$(LOCALBIN):$(PATH)" go test ./test/e2e/ -v
 
 .PHONY: lint
-lint: golangci-lint ## Run golangci-lint linter
+lint: ## Run golangci-lint linter
 	$(GOLANGCI_LINT) run
 
 .PHONY: lint-fix
-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
+lint-fix: ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix
 
 ##@ Build
@@ -119,7 +119,7 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 	rm Dockerfile.cross
 
 .PHONY: build-installer
-build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
+build-installer: manifests generate ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
@@ -131,26 +131,26 @@ ifndef ignore-not-found
 endif
 
 .PHONY: install
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
 
 .PHONY: uninstall
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
 .PHONY: undeploy
-undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Documentation
 
 .PHONY: api-docs
-api-docs: crd-ref-docs ## Generate api references docs.
+api-docs: ## Generate api references docs.
 	$(CRD_REF_DOCS) \
 		--source-path=./api \
 		--renderer=markdown \
@@ -163,67 +163,24 @@ api-docs: crd-ref-docs ## Generate api references docs.
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
-	mkdir -p $(LOCALBIN)
+	mkdir -p $@
 
 ## Tool Binaries
 KUBECTL ?= kubectl
-KUSTOMIZE ?= $(LOCALBIN)/kustomize
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-ENVTEST ?= $(LOCALBIN)/setup-envtest
-GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
-CRD_REF_DOCS ?= $(LOCALBIN)/crd-ref-docs
-KIND ?= $(LOCALBIN)/kind
+KUSTOMIZE ?= $(call go-tool-path,kustomize)
+CONTROLLER_GEN ?= $(call go-tool-path,controller-gen)
+ENVTEST ?= $(call go-tool-path,setup-envtest)
+GOLANGCI_LINT = $(call go-tool-path,golangci-lint)
+CRD_REF_DOCS ?= $(call go-tool-path,crd-ref-docs)
+KIND ?= $(call go-tool-path,kind)
 
-## Tool Versions
-KUSTOMIZE_VERSION = $(shell cd tools/mod && go list -m -f {{.Version}} sigs.k8s.io/kustomize/kustomize/v5)
-CONTROLLER_TOOLS_VERSION = $(shell cd tools/mod && go list -m -f {{.Version}} sigs.k8s.io/controller-tools)
-ENVTEST_VERSION = $(shell cd tools/mod && go list -m -f {{.Version}} sigs.k8s.io/controller-runtime/tools/setup-envtest)
-GOLANGCI_LINT_VERSION = $(shell cd tools/mod && go list -m -f {{.Version}} github.com/golangci/golangci-lint)
-CRD_REF_DOCS_VERSION = $(shell cd tools/mod && go list -m -f {{.Version}} github.com/elastic/crd-ref-docs)
-KIND_VERSION = $(shell cd tools/mod && go list -m -f {{.Version}} sigs.k8s.io/kind)
-
-.PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
-$(KUSTOMIZE): $(LOCALBIN)
-	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
-
-.PHONY: controller-gen
-controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
-$(CONTROLLER_GEN): $(LOCALBIN)
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
-
-.PHONY: envtest
-envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
-$(ENVTEST): $(LOCALBIN)
-	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
-
-.PHONY: crd-ref-docs
-crd-ref-docs: $(CRD_REF_DOCS) ## Install crd-ref-docs tool, ref: https://github.com/elastic/crd-ref-docs.
-$(CRD_REF_DOCS): $(LOCALBIN)
-	$(call go-install-tool,$(CRD_REF_DOCS),github.com/elastic/crd-ref-docs,$(CRD_REF_DOCS_VERSION))
+# Get the path for the given Go tool. Execute it first as the first time the
+# tool is installed the path is a temporary path.
+define go-tool-path
+$(shell (cd tools/mod && go tool $1 &>/dev/null && go tool -n $1))
+endef
 
 .PHONY: kind
-kind: $(KIND) ## Download kind locally if necessary.
-$(KIND): $(LOCALBIN)
-	$(call go-install-tool,$(KIND),sigs.k8s.io/kind,$(KIND_VERSION))
-
-.PHONY: golangci-lint
-golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
-$(GOLANGCI_LINT): $(LOCALBIN)
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
-
-# go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
-# $1 - target path with name of binary
-# $2 - package url which can be installed
-# $3 - specific version of package
-define go-install-tool
-@[ -f "$(1)-$(3)" ] || { \
-set -e; \
-package=$(2)@$(3) ;\
-echo "Downloading $${package}" ;\
-rm -f $(1) || true ;\
-GOBIN=$(LOCALBIN) go install $${package} ;\
-mv $(1) $(1)-$(3) ;\
-} ;\
-ln -sf $(1)-$(3) $(1)
-endef
+kind: $(LOCALBIN)/kind
+$(LOCALBIN)/kind: $(LOCALBIN)
+	ln -fs $(KIND) $@

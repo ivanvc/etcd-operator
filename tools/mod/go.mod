@@ -4,6 +4,15 @@ toolchain go1.24.0
 
 go 1.24
 
+tool (
+	github.com/elastic/crd-ref-docs
+	github.com/golangci/golangci-lint/cmd/golangci-lint
+	sigs.k8s.io/controller-runtime/tools/setup-envtest
+	sigs.k8s.io/controller-tools/cmd/controller-gen
+	sigs.k8s.io/kind
+	sigs.k8s.io/kustomize/kustomize/v5
+)
+
 require (
 	github.com/elastic/crd-ref-docs v0.1.0
 	github.com/golangci/golangci-lint v1.64.5
