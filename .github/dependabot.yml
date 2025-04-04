@@ -17,6 +17,12 @@ updates:
     etcd:
       patterns:
       - "go.etcd.io/*"
+- package-ecosystem: "gomod"
+  directory: "/"
+  schedule:
+    interval: "weekly"
+  allow:
+  - dependency-type: "direct"
 
 - package-ecosystem: gomod
   directory: /tools/mod # Not linked from /go.mod
