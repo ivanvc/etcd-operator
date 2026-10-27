@@ -1,0 +1,45 @@
+name: Verify Release
+
+# Builds a GoReleaser snapshot when the release configuration changes. It
+# doesn't push images or publish a release; releases are only published by the
+# Release workflow when a version tag is pushed.
+on:
+  pull_request:
+    branches:
+    - main
+    paths:
+    - .goreleaser.yaml
+    - Dockerfile
+    - Makefile
+    - 'config/**'
+    - .github/workflows/release.yaml
+    - .github/workflows/release-verify.yaml
+
+permissions:
+  contents: read
+
+env:
+  # Keep in sync with .github/workflows/release.yaml
+  GORELEASER_VERSION: v2.17.1
+
+jobs:
+  verify:
+    name: Verify release configuration
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: go.mod
+    - name: Check configuration
+      uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+      with:
+        version: ${{ env.GORELEASER_VERSION }}
+        args: check
+    - name: Build snapshot
+      uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+      with:
+        version: ${{ env.GORELEASER_VERSION }}
+        args: release --snapshot --clean
